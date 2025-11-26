@@ -3,7 +3,7 @@ import matplotlib.animation as animation # для анімації графік�
 import numpy as np # для математичних операцій
 import os # для роботи з файлами
 
-# Головні вбудовані функції
+# головні вбудовані функції
 def sin_function(x): 
     return np.sin(x)
 
@@ -28,7 +28,7 @@ def exponential_function(x):
 periodic_functions = ['sin', 'cos', 'tg', 'ctg'] # функції періодичні
 growth_functions = ['log', 'abs', 'exp'] # функції зростаючі
 
-# Словник доступних функцій
+# словник функцій
 functions = {
     "sin": sin_function,
     "cos": cos_function,
@@ -39,9 +39,9 @@ functions = {
     "exp": exponential_function
 }
 
-TXT_FILE = "user_choices.txt" # файл для читання обраних функцій
+TXT_FILE = "user_choices.txt" # назва TXT файлу
 
-def read_txt(): # читання файлу з обраними функціями
+def read_txt(): # функція для читання TXT файлу
     if not os.path.exists(TXT_FILE):
         return []
     try: 
@@ -52,7 +52,7 @@ def read_txt(): # читання файлу з обраними функціям
         print(f"Помилка при читанні файлу: {e}")
         return []
 
-def get_user_choice(): # обрання користувачем типу функції
+def get_user_choice(): # функція для отримання вибору користувача
     print("МЕНЮ:")
     print("1. Використати готову функцію (sin, cos, tg, ctg, log, abs, exp)")
     print("2. Ввести власну функцію від x")
@@ -64,8 +64,44 @@ def get_user_choice(): # обрання користувачем типу фун
         else:
             print("Помилка: введіть 1, 2 або 3")
 
-def animate_graph(func, name, periodic_like=False): # анімація графіка функції
-    if periodic_like: # періодична функція
+def save_static_plot(func, name, periodic_like=False): # функція для збереження статичного графіка
+
+    fig, ax = plt.subplots(figsize=(10, 6)) 
+    
+    if periodic_like:
+        x = np.linspace(-10, 10, 1000)
+        y = func(x)
+        y = np.where(np.abs(y) > 50, np.nan, y)
+        ax.plot(x, y, linewidth=2)
+        ax.set_xlim(-10, 10)
+        ax.set_ylim(-3, 3)
+    else:
+        if name == 'log':
+            x = np.linspace(0.01, 10, 500)
+        elif name == 'exp':
+            x = np.linspace(-2, 5, 500)
+        else:
+            x = np.linspace(-10, 10, 500)
+        
+        y = func(x) if callable(func) else eval(func, {"np": np}, {"x": x})
+        y = np.where(np.abs(y) > 50, np.nan, y)
+        ax.plot(x, y, linewidth=2)
+        ax.set_xlim(x[0], x[-1])
+        ax.set_ylim(np.nanmin(y)-1, np.nanmax(y)+1)
+    
+    ax.set_title(f"Графік функції: {name}")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.grid(True)
+    
+    # Зберігаємо статичний графік
+    filename = f"{name}.png"
+    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    print(f"Графік збережено як: {filename}")
+    plt.close(fig)  # Закриваємо figure для звільнення пам'яті
+
+def animate_graph(func, name, periodic_like=False): # функція для анімації графіка
+    if periodic_like:
         fig, ax = plt.subplots()
         x = np.linspace(-10, 10, 2000)
         y = func(x)
@@ -81,16 +117,16 @@ def animate_graph(func, name, periodic_like=False): # анімація граф�
             line.set_ydata(y_new)
             return [line]
         ani = animation.FuncAnimation(fig, update, frames=phase, interval=30, blit=True, repeat=True)
-        fig.savefig(f"{name}.png", dpi=300) # збереження графіка
         plt.show()
-    else: # зростаюча функція
+    else:
         fig, ax = plt.subplots()
-        if name=='log':
-            x = np.linspace(0.01,10,500)
-        elif name=='exp':
-            x = np.linspace(-2,5,500)
+        if name == 'log':
+            x = np.linspace(0.01, 10, 500)
+        elif name == 'exp':
+            x = np.linspace(-2, 5, 500)
         else:
-            x = np.linspace(-10,10,500)
+            x = np.linspace(-10, 10, 500)
+        
         y = func(x) if callable(func) else eval(func, {"np": np}, {"x": x})
         y = np.where(np.abs(y) > 50, np.nan, y)
         line, = ax.plot([], [], lw=2)
@@ -104,28 +140,41 @@ def animate_graph(func, name, periodic_like=False): # анімація граф�
             line.set_data(x[:frame], y[:frame])
             return [line]
         ani = animation.FuncAnimation(fig, update, frames=len(x), interval=20, blit=True, repeat=True)
-        fig.savefig(f"{name}.png", dpi=300) # збереження графіка
         plt.show()
 
 def main(): # головна функція
-    choice_type = get_user_choice() # отримання вибору користувача
+    choice_type = get_user_choice() # отримуємо вибір користувача
 
     if choice_type == "1":
         print("Доступні функції:", ", ".join(functions.keys()))
         while True:
             name = input("Введіть назву функції: ").strip().lower()
             if name in functions:
+                # Спочатку зберігаємо статичний графік
+                save_static_plot(functions[name], name, periodic_like=(name in periodic_functions))
+                # Потім показуємо анімацію
                 animate_graph(functions[name], name, periodic_like=(name in periodic_functions))
                 break
             else:
                 print("Такої функції немає.")
+                
     elif choice_type == "2":
         while True:
             formula = input("Введіть формулу функції від x (наприклад: np.sin(x), x**2): ")
             try:
-                _ = eval(formula, {"np": np}, {"x": np.linspace(-10,10,5)}) 
-                animate_graph(formula, formula, periodic_like=False)
+                # Перевіряємо формулу
+                test_x = np.linspace(-10, 10, 5)
+                test_result = eval(formula, {"np": np}, {"x": test_x})
+                
+                # Використовуємо саму формулу як ім'я
+                name = "custom_function"
+                
+                # Спочатку зберігаємо статичний графік
+                save_static_plot(formula, name, periodic_like=False)
+                # Потім показуємо анімацію
+                animate_graph(formula, name, periodic_like=False)
                 break
+                
             except NameError:
                 print("Помилка: ви використали невідому функцію чи змінну.")
             except SyntaxError:
@@ -134,29 +183,43 @@ def main(): # головна функція
                 print("Помилка: ділення на нуль у формулі.")
             except Exception as e:
                 print("Інша помилка у формулі:", e)
+                
     else:
         choice = read_txt()
         if not choice:
             print("TXT файл пустий. Повернення в меню.")
             main()
             return
+            
         print("Функції з TXT файлу:")
-        for idx, item in enumerate(choice,1):
+        for idx, item in enumerate(choice, 1):
             print(f"{idx}. {item}")
 
         while True:
             try:
                 sel = int(input(f"Виберіть номер (1-{len(choice)}): "))
-                if sel<1 or sel>len(choice):
+                if sel < 1 or sel > len(choice):
                     raise ValueError("Номер поза діапазоном")
                 selected = choice[sel-1]
+                
                 if selected in functions:
+                    # Спочатку зберігаємо статичний графік
+                    save_static_plot(functions[selected], selected, periodic_like=(selected in periodic_functions))
+                    # Потім показуємо анімацію
                     animate_graph(functions[selected], selected, periodic_like=(selected in periodic_functions))
                 else:
-                    animate_graph(selected, selected, periodic_like=False)
+                    # Для користувацьких функцій з файлу
+                    name = f"txt_function_{sel}"
+                    # Спочатку зберігаємо статичний графік
+                    save_static_plot(selected, name, periodic_like=False)
+                    # Потім показуємо анімацію
+                    animate_graph(selected, name, periodic_like=False)
                 break
+                
             except Exception as e:
                 print("Помилка:", e)
 
 if __name__ == "__main__":
     main()
+
+
